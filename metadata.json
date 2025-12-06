@@ -1,0 +1,5 @@
+{
+  "name": "Copy of DockerEnv Monitor",
+  "description": "Real-time monitoring dashboard for DockerEnv rollouts, featuring live file browsing and run history.",
+  "requestFramePermissions": []
+}
