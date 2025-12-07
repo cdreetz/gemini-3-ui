@@ -1,18 +1,49 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { HistoryResponse, RolloutWithId } from './types';
+import { HistoryResponse, RolloutWithId, RolloutMetadata } from './types';
 import { Sidebar } from './components/Sidebar';
 import { FileViewer } from './components/FileViewer';
 import { StatusBadge } from './components/StatusBadge';
-import { RefreshCw, Server, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Server, AlertTriangle, Database } from 'lucide-react';
 
 const API_ENDPOINT = '/api/history';
 const POLL_INTERVAL = 2000;
+
+// Example data matching the Python API spec
+const MOCK_DATA: HistoryResponse = {
+  active_id: "8daaca38-dbf8-4cc1-9f5b-5bd7061c7916",
+  history: {
+    "efe4b091-7f9e-4807-aa28-652892e1f481": {
+      container_id: "b50547e9d5e2",
+      status: "Finished (Container Gone)",
+      last_updated: "15:44:47",
+      start_time: 1733519086.0,
+      files: {
+        "tests/test_main.py": "import pytest\n\ndef test_add():\n    assert add(1, 2) == 3\n\ndef test_sub():\n    assert sub(2, 1) == 1",
+        "info": "Container was active. Run completed successfully.",
+        "results.json": "{\n  \"passed\": 2,\n  \"failed\": 0\n}"
+      }
+    },
+    "8daaca38-dbf8-4cc1-9f5b-5bd7061c7916": {
+      container_id: "09c08af4e108",
+      status: "Active",
+      last_updated: "15:48:38",
+      start_time: 1733519310.0,
+      files: {
+        "tests/test_main.py": "import pytest\nfrom main import add\n\n# Tests are running...",
+        "code/main.py": "def add(a, b):\n    return a + b\n\nif __name__ == '__main__':\n    print(add(2, 2))",
+        "logs/app.log": "[INFO] 15:48:30 Starting application...\n[INFO] 15:48:32 Connected to database\n[INFO] 15:48:35 Processing batch 1",
+        "error": "Connection timeout warning (non-fatal)"
+      }
+    }
+  }
+};
 
 export default function App() {
   const [data, setData] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [usingMock, setUsingMock] = useState<boolean>(false);
 
   // Fetch Logic
   const fetchData = async () => {
@@ -24,10 +55,16 @@ export default function App() {
       const json: HistoryResponse = await response.json();
       setData(json);
       setError(null);
+      setUsingMock(false);
     } catch (err) {
-      console.error("Failed to fetch history:", err);
-      // Don't clear old data on transient error, just show indicator
-      setError("Connection lost. Retrying...");
+      console.warn("Failed to fetch history, falling back to mock data:", err);
+      // Fallback to mock data for demo/dev purposes if API fails
+      if (!data) {
+        setData(MOCK_DATA);
+        setUsingMock(true);
+      }
+      // We still set error to indicate we aren't live, but we don't block the UI
+      setError("Connection lost. Showing cached/mock data.");
     } finally {
       setLoading(false);
     }
@@ -46,7 +83,7 @@ export default function App() {
     
     return Object.entries(data.history)
       .map(([id, meta]) => ({
-        ...meta,
+        ...(meta as RolloutMetadata),
         rollout_id: id,
         isActive: id === data.active_id
       }))
@@ -89,7 +126,7 @@ export default function App() {
           <div>
             <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               {selectedRollout ? 'Rollout Details' : 'Dashboard'}
-              {loading && <RefreshCw className="w-4 h-4 animate-spin text-slate-400 ml-2" />}
+              {loading && !usingMock && <RefreshCw className="w-4 h-4 animate-spin text-slate-400 ml-2" />}
             </h2>
             <div className="text-sm text-slate-500 mt-1 flex items-center gap-4">
               {selectedRollout ? (
@@ -106,7 +143,14 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
-            {error && (
+            {usingMock && (
+              <div className="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-md text-sm border border-blue-200">
+                <Database className="w-4 h-4" />
+                Preview Mode (Mock Data)
+              </div>
+            )}
+
+            {error && !usingMock && (
               <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md text-sm border border-amber-200">
                 <AlertTriangle className="w-4 h-4" />
                 {error}

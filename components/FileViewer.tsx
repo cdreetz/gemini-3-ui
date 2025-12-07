@@ -15,9 +15,9 @@ export const FileViewer: React.FC<FileViewerProps> = ({ files }) => {
 
     Object.entries(files).forEach(([key, value]) => {
       if (key === 'info') {
-        if (value) messages.push({ type: 'info', content: value });
+        if (value) messages.push({ type: 'info', content: value as string });
       } else if (key === 'error') {
-        if (value) messages.push({ type: 'error', content: value });
+        if (value) messages.push({ type: 'error', content: value as string });
       } else {
         list.push(key);
       }
